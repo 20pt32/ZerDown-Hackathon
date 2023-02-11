@@ -85,3 +85,13 @@ WHERE (id, name, phone_numbers) NOT IN (
   SELECT id, name, phone_numbers
   FROM duplicates
 );
+
+--creating a new table to store the relationships between agents by joining the home_info and agent_listing tables based on the home_id column. This new table can have columns for the home_id, listing_agent_id, and selling_agent_id, which can be derived from the agent_listing table based on the deal_side column.
+CREATE TABLE agent_relationships AS
+SELECT home_id,
+       MIN(CASE WHEN deal_side = 'listing' THEN agent_id END) AS listing_agent_id,
+       MIN(CASE WHEN deal_side = 'selling' THEN agent_id END) AS selling_agent_id
+FROM home_info
+JOIN agent_listing
+ON home_info.id = agent_listing.home_id
+GROUP BY home_id;
