@@ -29,4 +29,33 @@ WHERE id NOT IN (
 );
 
 
+-- Add a new column to the agent_info table
+ALTER TABLE agent_info ADD COLUMN address TEXT;
+
+-- Populate the new address column with the result of the query
+UPDATE agent_info SET address = COALESCE(street, '') || ', ' || COALESCE(city, '') || ', ' || COALESCE(state, '') || ', ' || COALESCE(county, '') || ', ' || COALESCE(zipcode, '');
+
+  
+--to indentify duplicate agents
+
+WITH duplicates AS (
+  SELECT 
+    state_license, 
+    phone_numbers, 
+    email, 
+    address, 
+    ROW_NUMBER() OVER (PARTITION BY state_license, phone_numbers, email, address ORDER BY state_license) AS row_number
+  FROM 
+    agent_info
+)
+SELECT 
+  state_license, 
+  phone_numbers, 
+  email, 
+  address
+FROM 
+  duplicates
+WHERE 
+  row_number > 1;
+
 
