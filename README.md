@@ -95,3 +95,10 @@ FROM home_info
 JOIN agent_listing
 ON home_info.id = agent_listing.home_id
 GROUP BY home_id;
+
+CREATE TABLE agent_relationship_graph AS
+SELECT DISTINCT a.listing_agent_id AS agent_a_id, b.selling_agent_id AS agent_b_id
+FROM agent_relationships a
+JOIN agent_relationships b
+ON a.home_id = b.home_id AND a.listing_agent_id != b.selling_agent_id;
+
