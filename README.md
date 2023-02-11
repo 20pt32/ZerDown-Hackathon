@@ -72,3 +72,16 @@ WHERE (id, state_license, phone_numbers, email, address) NOT IN (
   SELECT id, state_license, phone_numbers, email, address
   FROM duplicates
 );
+
+--to delete the duplicate brokerage branches
+WITH duplicates AS (
+  SELECT MIN(id) AS id, name, phone_numbers
+  FROM brokerage
+  GROUP BY name, phone_numbers
+  HAVING COUNT(*) > 1
+)
+DELETE FROM brokerage
+WHERE (id, name, phone_numbers) NOT IN (
+  SELECT id, name, phone_numbers
+  FROM duplicates
+);
