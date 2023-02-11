@@ -13,46 +13,14 @@ ON DELETE SET NULL;
 
 -- 1. to identify and delete duplicate brokerages using fuzzy string matching algorithm
 
--- Install the fuzzystrmatch extension
-
 CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
-
--- Create a temporary table to store the levenshtein distances between brokerages
-
-CREATE TEMPORARY TABLE temp_brokerage AS
-SELECT 
-  b1.id AS id1,
-  b2.id AS id2,
-  levenshtein(b1.name, b2.name) AS distance
-FROM 
-  brokerage b1
-  JOIN brokerage b2 ON b1.id < b2.id;
-
--- Create an index on the temp_brokerage table to speed up query execution
-
-CREATE INDEX temp_brokerage_index ON temp_brokerage (distance);
-
--- Delete duplicate brokerages by keeping the record with the lowest id
-
-WITH duplicates AS (
-  SELECT 
-    id1,
-    MIN(id2) AS duplicate_id
-  FROM 
-    temp_brokerage
-  WHERE 
-    distance <= 3
-  GROUP BY 
-    id1
+WITH cte AS (
+  SELECT id, name, 
+         ROW_NUMBER() OVER (PARTITION BY name ORDER BY levenshtein(name, name) DESC) AS rn
+  FROM brokerage
 )
-DELETE FROM 
-  brokerage
-WHERE 
-  id IN (SELECT duplicate_id FROM duplicates);
-
--- Drop the temp_brokerage table
-
-DROP TABLE temp_brokerage;
+DELETE FROM brokerage
+WHERE id IN (SELECT id FROM cte WHERE rn > 1);
 
 
 
