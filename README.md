@@ -95,7 +95,7 @@ DROP TABLE brokerage;
 
 ALTER TABLE unique_brokerage RENAME TO brokerage;
 
---creating a new table to store the relationships between agents by joining the home_info and agent_listing tables based on the home_id column. This new table can have columns for the home_id, listing_agent_id, and selling_agent_id, which can be derived from the agent_listing table based on the deal_side column.
+--4.creating a new table to store the relationships between agents by joining the home_info and agent_listing tables based on the home_id column. This new table can have columns for the home_id, listing_agent_id, and selling_agent_id, which can be derived from the agent_listing table based on the deal_side column.
 
 CREATE TABLE agent_relationships AS
 SELECT home_id,
