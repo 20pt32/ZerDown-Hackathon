@@ -1,3 +1,5 @@
+#to retrieve the top n agents and brokerages for a given market id:
+
 import tkinter as tk
 
 def get_top_agents_and_brokerages(market_id, n):
