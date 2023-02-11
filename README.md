@@ -59,3 +59,16 @@ WHERE
   row_number > 1;
 
 
+--to remove the duplicates
+
+WITH duplicates AS (
+  SELECT MIN(id) AS id, state_license, phone_numbers, email, address
+  FROM agent_info
+  GROUP BY state_license, phone_numbers, email, address
+  HAVING COUNT(*) > 1
+)
+DELETE FROM agent_info
+WHERE (id, state_license, phone_numbers, email, address) NOT IN (
+  SELECT id, state_license, phone_numbers, email, address
+  FROM duplicates
+);
