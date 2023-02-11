@@ -1,6 +1,7 @@
 # ZerDown-Hackathon
 
 --will change the foreign key constraint to set the brokerage_id to null in the agent_info table if the corresponding brokerage is deleted from the brokerage table.
+
 ALTER TABLE agent_info
 DROP CONSTRAINT agent_ibfk_1;
 
