@@ -11,82 +11,89 @@ FOREIGN KEY (brokerage_id)
 REFERENCES brokerage(id)
 ON DELETE SET NULL;
 
---to remove the duplicates from brokerages
+-- 1. to identify and delete duplicate brokerages using fuzzy string matching algorithm
 
-WITH clean_brokerages AS (
-  SELECT id, TRIM(LOWER(name)) AS clean_name
-  FROM brokerage
-), duplicates AS (
-  SELECT MIN(id) AS keep_id, clean_name
-  FROM clean_brokerages
-  GROUP BY clean_name
-  HAVING COUNT(*) > 1
-)
-DELETE FROM brokerage
-WHERE id NOT IN (
-  SELECT keep_id
-  FROM duplicates
-);
+-- Install the fuzzystrmatch extension
 
+CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
 
--- Add a new column to the agent_info table
+-- Create a temporary table to store the levenshtein distances between brokerages
 
-ALTER TABLE agent_info ADD COLUMN address TEXT;
+CREATE TEMPORARY TABLE temp_brokerage AS
+SELECT 
+  b1.id AS id1,
+  b2.id AS id2,
+  levenshtein(b1.name, b2.name) AS distance
+FROM 
+  brokerage b1
+  JOIN brokerage b2 ON b1.id < b2.id;
 
--- Populate the new address column with the result of the query
-UPDATE agent_info SET address = COALESCE(street, '') || ', ' || COALESCE(city, '') || ', ' || COALESCE(state, '') || ', ' || COALESCE(county, '') || ', ' || COALESCE(zipcode, '');
+-- Create an index on the temp_brokerage table to speed up query execution
 
-  
---to indentify duplicate agents
+CREATE INDEX temp_brokerage_index ON temp_brokerage (distance);
+
+-- Delete duplicate brokerages by keeping the record with the lowest id
 
 WITH duplicates AS (
   SELECT 
-    state_license, 
-    phone_numbers, 
-    email, 
-    address, 
-    ROW_NUMBER() OVER (PARTITION BY state_license, phone_numbers, email, address ORDER BY state_license) AS row_number
+    id1,
+    MIN(id2) AS duplicate_id
   FROM 
-    agent_info
+    temp_brokerage
+  WHERE 
+    distance <= 3
+  GROUP BY 
+    id1
 )
-SELECT 
-  state_license, 
-  phone_numbers, 
-  email, 
-  address
-FROM 
-  duplicates
+DELETE FROM 
+  brokerage
 WHERE 
-  row_number > 1;
+  id IN (SELECT duplicate_id FROM duplicates);
+
+-- Drop the temp_brokerage table
+
+DROP TABLE temp_brokerage;
 
 
---to remove the duplicates
+
+--2.to identify and delete duplicate agents using fuzzy string matching algorithm
 
 WITH duplicates AS (
-  SELECT MIN(id) AS id, state_license, phone_numbers, email, address
+  SELECT 
+    id, 
+    row_number() OVER (PARTITION BY 
+      levenshtein(lower(first_name), lower(email)) + 
+      levenshtein(lower(first_name), lower(state_license)) + 
+      levenshtein(lower(first_name), lower(phone_numbers)) +
+      levenshtein(lower(first_name), lower(street || ' ' || city || ' ' || state || ' ' || zipcode))
+    ORDER BY id) AS row_num
   FROM agent_info
-  GROUP BY state_license, phone_numbers, email, address
-  HAVING COUNT(*) > 1
 )
-DELETE FROM agent_info
-WHERE (id, state_license, phone_numbers, email, address) NOT IN (
-  SELECT id, state_license, phone_numbers, email, address
-  FROM duplicates
-);
+DELETE FROM agent_info 
+WHERE id IN (SELECT id FROM duplicates WHERE row_num > 1);
 
---to delete the duplicate brokerage branches
 
-WITH duplicates AS (
-  SELECT MIN(id) AS id, name, phone_numbers
-  FROM brokerage
-  GROUP BY name, phone_numbers
-  HAVING COUNT(*) > 1
-)
-DELETE FROM brokerage
-WHERE (id, name, phone_numbers) NOT IN (
-  SELECT id, name, phone_numbers
-  FROM duplicates
-);
+--3.to identify and delete duplicate brokerage branches
+
+-- Enable the pg_trgm extension
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Create a temporary table to store the unique brokerage branches
+
+CREATE TEMPORARY TABLE unique_brokerage AS
+  SELECT DISTINCT ON (name, phone_numbers, street, city, state, zipcode) 
+    *
+  FROM 
+    brokerage;
+
+-- Drop the original brokerage table
+
+DROP TABLE brokerage;
+
+-- Rename the temporary table to the original table name
+
+ALTER TABLE unique_brokerage RENAME TO brokerage;
 
 --creating a new table to store the relationships between agents by joining the home_info and agent_listing tables based on the home_id column. This new table can have columns for the home_id, listing_agent_id, and selling_agent_id, which can be derived from the agent_listing table based on the deal_side column.
 
