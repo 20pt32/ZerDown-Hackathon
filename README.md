@@ -30,6 +30,7 @@ WHERE id NOT IN (
 
 
 -- Add a new column to the agent_info table
+
 ALTER TABLE agent_info ADD COLUMN address TEXT;
 
 -- Populate the new address column with the result of the query
@@ -74,6 +75,7 @@ WHERE (id, state_license, phone_numbers, email, address) NOT IN (
 );
 
 --to delete the duplicate brokerage branches
+
 WITH duplicates AS (
   SELECT MIN(id) AS id, name, phone_numbers
   FROM brokerage
@@ -87,6 +89,7 @@ WHERE (id, name, phone_numbers) NOT IN (
 );
 
 --creating a new table to store the relationships between agents by joining the home_info and agent_listing tables based on the home_id column. This new table can have columns for the home_id, listing_agent_id, and selling_agent_id, which can be derived from the agent_listing table based on the deal_side column.
+
 CREATE TABLE agent_relationships AS
 SELECT home_id,
        MIN(CASE WHEN deal_side = 'listing' THEN agent_id END) AS listing_agent_id,
